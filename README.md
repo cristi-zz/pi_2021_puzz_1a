@@ -7,7 +7,7 @@ Pentru a lucra:
 1) Cititi tutorialul de git si ssh: http://users.utcluj.ro/~visoft/tutoriale/
 2) Faceti-va cont pe github daca nu aveti
 3) Va setati ssh-ul sa puteti accesa github-ul
-4) Va puneti pe calculator git-scm
+4) Va puneti pe calculator git-scm ///
 5) Va clonati proiectul specificat de profesor:
   - Deschideti o consola ``Git CMD``
   - Navigati unde vreti sa salvati proiectul
