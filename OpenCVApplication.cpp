@@ -64,6 +64,26 @@ void testColor2Gray()
 	}
 }
 
+double rmse(Mat_<Vec3b>& m0, Mat_<Vec3b>& m1) {
+    double result = 0;
+    int height = m0.rows;
+    int width = m0.cols;
+
+
+    for (int i = 0; i < height; i++)
+        for (int j = 0; j < width; j++) {
+            Vec3b p0 = m0.at<Vec3b>(i, j);
+            Vec3b p1 = m1.at<Vec3b>(i, j);
+            int c0 = abs(p0[0] - p1[0]);
+            int c1 = abs(p0[1] - p1[1]);
+            int c2 = abs(p0[2] - p1[2]);
+            result += sqrt(c0 * c0 + c1 * c1 + c2 * c2) / 255.0 / sqrt(3.0);
+        }
+
+    result /= height * width;
+    return result;
+}
+
 void divideImage()
 {
 	char fname[MAX_PATH];
