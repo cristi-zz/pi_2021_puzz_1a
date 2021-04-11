@@ -8,11 +8,11 @@
 void testOpenImage()
 {
 	char fname[MAX_PATH];
-	while(openFileDlg(fname))
+	while (openFileDlg(fname))
 	{
 		Mat src;
 		src = imread(fname);
-		imshow("opened image",src);
+		imshow("opened image", src);
 		waitKey();
 	}
 }
@@ -20,16 +20,16 @@ void testOpenImage()
 void testOpenImagesFld()
 {
 	char folderName[MAX_PATH];
-	if (openFolderDlg(folderName)==0)
+	if (openFolderDlg(folderName) == 0)
 		return;
 	char fname[MAX_PATH];
-	FileGetter fg(folderName,"bmp");
-	while(fg.getNextAbsFile(fname))
+	FileGetter fg(folderName, "bmp");
+	while (fg.getNextAbsFile(fname))
 	{
 		Mat src;
 		src = imread(fname);
-		imshow(fg.getFoundFileName(),src);
-		if (waitKey()==27) //ESC pressed
+		imshow(fg.getFoundFileName(), src);
+		if (waitKey() == 27) //ESC pressed
 			break;
 	}
 }
@@ -37,7 +37,7 @@ void testOpenImagesFld()
 void testColor2Gray()
 {
 	char fname[MAX_PATH];
-	while(openFileDlg(fname))
+	while (openFileDlg(fname))
 	{
 		Mat_<Vec3b> src = imread(fname, IMREAD_COLOR);
 
@@ -46,25 +46,57 @@ void testColor2Gray()
 
 		Mat_<uchar> dst(height, width);
 
-		for (int i=0; i<height; i++)
+		for (int i = 0; i < height; i++)
 		{
-			for (int j=0; j<width; j++)
+			for (int j = 0; j < width; j++)
 			{
-				Vec3b v3 = src(i,j);
+				Vec3b v3 = src(i, j);
 				uchar b = v3[0];
 				uchar g = v3[1];
 				uchar r = v3[2];
-				dst(i,j) = (r+g+b)/3;
+				dst(i, j) = (r + g + b) / 3;
 			}
 		}
-		
-		imshow("original image",src);
-		imshow("gray image",dst);
+
+		imshow("original image", src);
+		imshow("gray image", dst);
 		waitKey();
 	}
 }
 
+void divideImage()
+{
+	char fname[MAX_PATH];
+	while (openFileDlg(fname))
+	{
+		Mat_<Vec3b> src;
+		src = imread(fname);
+		printf("%d %d", src.rows, src.cols);
+		int rowNumber = src.rows / 2;
+		int colNumber = src.cols / 2;
+		Mat_<Vec3b> imgLeft(rowNumber, colNumber), imgRight(rowNumber, colNumber);
+		std::vector<Mat_<Vec3b>> imagePieces;
+		for (int i = 0; i < 4; i++)
+			imagePieces.push_back(Mat_<Vec3b>(rowNumber, colNumber));
+		for(int i = 0; i< src.rows; i++)
+			for (int j = 0; j < src.cols; j++)
+			{
+				if (i < rowNumber && j < colNumber)
+					imagePieces.at(0)(i,j) = src(i, j);
 
+				if (i < rowNumber && j > colNumber)
+					imagePieces.at(1)(i, j-colNumber) = src(i, j);
+
+				if (i > rowNumber && j < colNumber)
+					imagePieces.at(2)(i-rowNumber, j) = src(i, j);
+				if (i > rowNumber && j > colNumber)
+					imagePieces.at(3)(i-rowNumber,j - colNumber) = src(i, j);
+			}
+		for (int i = 0; i < imagePieces.size(); i++)
+			imshow(std::to_string(i), imagePieces.at(i));
+		waitKey();
+	}
+}
 int main()
 {
 	int op;
@@ -78,20 +110,23 @@ int main()
 		printf(" 3 - Color to Gray\n");
 		printf(" 0 - Exit\n\n");
 		printf("Option: ");
-		scanf("%d",&op);
+		scanf("%d", &op);
 		switch (op)
 		{
-			case 1:
-				testOpenImage();
-				break;
-			case 2:
-				testOpenImagesFld();
-				break;
-			case 3:
-				testColor2Gray();
-				break;
+		case 1:
+			testOpenImage();
+			break;
+		case 2:
+			testOpenImagesFld();
+			break;
+		case 3:
+			testColor2Gray();
+			break;
+		case 4:
+			divideImage();
+			break;
 		}
-	}
-	while (op!=0);
+		
+	} 	while (op != 0);
 	return 0;
 }
