@@ -64,23 +64,55 @@ void testColor2Gray()
 	}
 }
 
-double rmse(Mat_<Vec3b>& m0, Mat_<Vec3b>& m1) {
+double rmseVector(std::vector<uchar>& m0, std::vector<uchar>& m1) {
+	double result = 0;
+	int size = m0.size();
+
+	for (int i = 0; i < size; i++) {
+		uchar p0 = m0[i];
+		uchar p1 = m1[i];
+		int c = abs(p0 - p1);
+		result += sqrt(c * c);
+	}
+
+	result /= size;
+	return result;
+}
+
+double rmseMatrix(Mat_<uchar>& m0, Mat_<uchar>& m1) {
     double result = 0;
     int height = m0.rows;
     int width = m0.cols;
 
+	std::vector<uchar> p0;
+	std::vector<uchar> p1;
 
-    for (int i = 0; i < height; i++)
-        for (int j = 0; j < width; j++) {
-            Vec3b p0 = m0.at<Vec3b>(i, j);
-            Vec3b p1 = m1.at<Vec3b>(i, j);
-            int c0 = abs(p0[0] - p1[0]);
-            int c1 = abs(p0[1] - p1[1]);
-            int c2 = abs(p0[2] - p1[2]);
-            result += sqrt(c0 * c0 + c1 * c1 + c2 * c2) / 255.0 / sqrt(3.0);
-        }
+	if (width < height)
+	{
+		for (int i = 0; i < width; i++) {
+			p0.clear();
+			p1.clear();
+			for (int j = 0; j < height; j++) {
+				p0.push_back(m0.at<uchar>(j,width-i));
+				p1.push_back(m1.at<uchar>(j,i));
+			}
+			result += rmseVector(p0, p1);
+		}
+	}
+	else {
+		for (int i = 0; i < height; i++) {
+			p0.clear();
+			p1.clear();
+			for (int j = 0; j < width; j++) {
+				p0.push_back(m0.at<uchar>(height - i, j));
+				p1.push_back(m1.at<uchar>(i, j));
+			}
+			result += rmseVector(p0, p1);
+		}
+	}
 
-    result /= height * width;
+
+    result /= width;
     return result;
 }
 
