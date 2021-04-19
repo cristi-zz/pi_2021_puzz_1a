@@ -116,6 +116,49 @@ double rmseMatrix(Mat_<uchar>& m0, Mat_<uchar>& m1) {
     return result;
 }
 
+std::vector<Mat_<uchar>> getPatches(Mat_<uchar> image, int patchSize) {
+	std::vector<Mat_<uchar>> patches;
+	Mat_<uchar> emptyLeft(image.rows, patchSize);
+	Mat_<uchar> emptyTop(patchSize, image.cols);
+	Mat_<uchar> emptyRight(image.rows, patchSize);
+	Mat_<uchar> emptyBottom(patchSize, image.cols);
+
+	patches.push_back(emptyLeft);
+	patches.push_back(emptyTop);
+	patches.push_back(emptyRight);
+	patches.push_back(emptyBottom);
+
+	for (int i = 0; i < image.rows; i++)
+	{
+		for (int j = 0; j < image.cols; j++)
+		{
+			if (j < patchSize) {
+				patches[0].at<uchar>(i, j) = image.at<uchar>(i, j);
+			}
+
+			if (i < patchSize) {
+				patches[1].at<uchar>(i, j) = image.at<uchar>(i, j);
+			}
+
+			if (j > image.cols - patchSize) {
+				patches[2].at<uchar>(i, abs(image.cols - j - patchSize + 1)) = image.at<uchar>(i, j);
+			}
+
+			if (i > image.rows - patchSize) {
+				patches[3].at<uchar>(abs(image.rows - i - patchSize + 1), j) = image.at<uchar>(i, j);
+			}
+		}
+	}
+
+	imshow("left", patches[0]);
+	imshow("top", patches[1]);
+	imshow("right", patches[2]);
+	imshow("bot", patches[3]);
+	printf("%lf", rmseMatrix(patches[0], patches[2]));
+	waitKey();
+	return patches;
+}
+
 void divideImage()
 {
 	char fname[MAX_PATH];
@@ -141,6 +184,7 @@ void divideImage()
 
 				if (i > rowNumber && j < colNumber)
 					imagePieces.at(2)(i-rowNumber, j) = src(i, j);
+
 				if (i > rowNumber && j > colNumber)
 					imagePieces.at(3)(i-rowNumber,j - colNumber) = src(i, j);
 			}
@@ -160,6 +204,7 @@ int main()
 		printf(" 1 - Basic image opening...\n");
 		printf(" 2 - Open BMP images from folder\n");
 		printf(" 3 - Color to Gray\n");
+		printf(" 4 - Divide image\n");
 		printf(" 0 - Exit\n\n");
 		printf("Option: ");
 		scanf("%d", &op);
