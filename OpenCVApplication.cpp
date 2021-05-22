@@ -3,6 +3,7 @@
 
 #include "stdafx.h"
 #include "common.h"
+#include <float.h>
 
 
 void testOpenImage()
@@ -64,56 +65,23 @@ void testColor2Gray()
 	}
 }
 
-double rmseVector(std::vector<uchar>& m0, std::vector<uchar>& m1) {
-	double result = 0;
-	int size = m0.size();
 
-	for (int i = 0; i < size; i++) {
-		uchar p0 = m0[i];
-		uchar p1 = m1[i];
-		int c = abs(p0 - p1);
-		result += sqrt(c * c);
-	}
+double rmseMatrix(Mat_<uchar> first, Mat_<uchar> second) {
 
-	result /= size;
-	return result;
-}
-
-double rmseMatrix(Mat_<uchar>& m0, Mat_<uchar>& m1) {
-    double result = 0;
-    int height = m0.rows;
-    int width = m0.cols;
-
-	std::vector<uchar> p0;
-	std::vector<uchar> p1;
-
-	if (width < height)
+	double rmse = 0.0;
+	int nrOfElements = first.rows * first.cols;
+	int ratio = first.rows;
+	for (int i = 0; i < first.rows; i++)
 	{
-		for (int i = 0; i < width; i++) {
-			p0.clear();
-			p1.clear();
-			for (int j = 0; j < height; j++) {
-				p0.push_back(m0.at<uchar>(j,width-i));
-				p1.push_back(m1.at<uchar>(j,i));
-			}
-			result += rmseVector(p0, p1);
+		for (int j = 0; j < first.cols; j++)
+		{
+			rmse += (first(i, j) - second(i, j)) * (first(i, j) - second(i, j)) * ratio;
 		}
-	}
-	else {
-		for (int i = 0; i < height; i++) {
-			p0.clear();
-			p1.clear();
-			for (int j = 0; j < width; j++) {
-				p0.push_back(m0.at<uchar>(height - i, j));
-				p1.push_back(m1.at<uchar>(i, j));
-			}
-			result += rmseVector(p0, p1);
-		}
+		ratio--;
 	}
 
-
-    result /= width;
-    return result;
+	rmse = sqrt(rmse / nrOfElements);
+	return rmse;
 }
 
 std::vector<Mat_<uchar>> getPatches(Mat_<uchar> image, int patchSize) {
@@ -122,7 +90,6 @@ std::vector<Mat_<uchar>> getPatches(Mat_<uchar> image, int patchSize) {
 	Mat_<uchar> emptyTop(patchSize, image.cols);
 	Mat_<uchar> emptyRight(image.rows, patchSize);
 	Mat_<uchar> emptyBottom(patchSize, image.cols);
-
 	patches.push_back(emptyLeft);
 	patches.push_back(emptyTop);
 	patches.push_back(emptyRight);
@@ -149,47 +116,82 @@ std::vector<Mat_<uchar>> getPatches(Mat_<uchar> image, int patchSize) {
 			}
 		}
 	}
-
-	imshow("left", patches[0]);
+	cv::rotate(patches[0], patches[0], ROTATE_90_CLOCKWISE);
+	cv::rotate(patches[2], patches[2], ROTATE_90_COUNTERCLOCKWISE);
+	cv::rotate(patches[3], patches[3], ROTATE_180);
+	/*imshow("left", patches[0]);
 	imshow("top", patches[1]);
 	imshow("right", patches[2]);
 	imshow("bot", patches[3]);
-	printf("%lf", rmseMatrix(patches[0], patches[2]));
-	waitKey();
+	
+	waitKey();*/
 	return patches;
 }
 
-void divideImage()
+void resolve2x2()
 {
 	char fname[MAX_PATH];
 	while (openFileDlg(fname))
 	{
-		Mat_<Vec3b> src;
-		src = imread(fname);
-		printf("%d %d", src.rows, src.cols);
+		Mat_<uchar> src;
+		src = imread(fname, IMREAD_GRAYSCALE);
+		
 		int rowNumber = src.rows / 2;
 		int colNumber = src.cols / 2;
-		Mat_<Vec3b> imgLeft(rowNumber, colNumber), imgRight(rowNumber, colNumber);
-		std::vector<Mat_<Vec3b>> imagePieces;
+		Mat_<uchar> imgLeft(rowNumber, colNumber), imgRight(rowNumber, colNumber);
+		std::vector<Mat_<uchar>> imagePieces;
 		for (int i = 0; i < 4; i++)
-			imagePieces.push_back(Mat_<Vec3b>(rowNumber, colNumber));
-		for(int i = 0; i< src.rows; i++)
+			imagePieces.push_back(Mat_<uchar>(rowNumber, colNumber));
+		for (int i = 0; i < src.rows; i++)
 			for (int j = 0; j < src.cols; j++)
 			{
 				if (i < rowNumber && j < colNumber)
-					imagePieces.at(0)(i,j) = src(i, j);
+					imagePieces.at(0)(i, j) = src(i, j);
 
 				if (i < rowNumber && j > colNumber)
-					imagePieces.at(1)(i, j-colNumber) = src(i, j);
+					imagePieces.at(1)(i, j - colNumber) = src(i, j);
 
 				if (i > rowNumber && j < colNumber)
-					imagePieces.at(2)(i-rowNumber, j) = src(i, j);
+					imagePieces.at(2)(i - rowNumber, j) = src(i, j);
 
 				if (i > rowNumber && j > colNumber)
-					imagePieces.at(3)(i-rowNumber,j - colNumber) = src(i, j);
+					imagePieces.at(3)(i - rowNumber, j - colNumber) = src(i, j);
 			}
 		for (int i = 0; i < imagePieces.size(); i++)
 			imshow(std::to_string(i), imagePieces.at(i));
+
+		for(int i = 0; i<4; i++)
+			for (int j = 0; j < 4; j++)
+			{
+				if (i != j)
+				{
+					std::vector<Mat_<uchar>> p1 = getPatches(imagePieces.at(i), 30);
+					std::vector<Mat_<uchar>> p2 = getPatches(imagePieces.at(j), 30);
+					int auxK = 0;
+					int auxZ = 0;
+					double min = FLT_MAX;
+					for (int k = 1; k < 4; k++)
+					{
+						
+						for (int z = 0; z < 4; z++)
+						{
+							double result = rmseMatrix(p1.at(k), p2.at(z));
+							if (result < min)
+							{
+								min = result;
+								auxK = k;
+								auxZ = z;
+							}
+						}
+
+						
+						printf("\n");
+					}
+					printf("patch %d patch %d : optim %d, %d: %lf", i, j, auxK, auxZ, min);
+
+					//TODO: rezolvat puzzle, in functie de valoarea RMSE
+				}
+			}
 		waitKey();
 	}
 }
@@ -220,10 +222,10 @@ int main()
 			testColor2Gray();
 			break;
 		case 4:
-			divideImage();
+			resolve2x2();
 			break;
 		}
-		
-	} 	while (op != 0);
+
+	} while (op != 0);
 	return 0;
 }
