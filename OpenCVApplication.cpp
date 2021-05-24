@@ -182,10 +182,9 @@ void resolve2x2()
 		exit(0);*/
 		for (int i = 0; i < 4; i++)
 		{
-			switch (i)
+			if (i == 0)
 			{
-			case 0:
-			{
+				printf("TOP LEFT\n");
 				std::vector<Mat_<uchar>> p0 = getPatches(imagePieces.at(0), 2);
 				double min = FLT_MAX;
 				int auxK = 0;
@@ -229,15 +228,59 @@ void resolve2x2()
 				}
 
 				printf("Best: Imagine = %d Patch = %d -> RMSE = %lf\n", auxJ, auxK, min); // imaginea din dreapta
-				printf("Best: Imagine = %d Patch = %d -> RMSE = %lf", auxJ2, auxK2, min2); //imaginea de jos
-				
-			}
-			default:
-				break;
+				printf("Best: Imagine = %d Patch = %d -> RMSE = %lf\n", auxJ2, auxK2, min2); //imaginea de jos
+				//cum e 2x2, mai ramane o singura imagine ramasa, cea din stanga jos.
 			}
 
+			if (i == 3)
+			{
+				printf("BOT RIGHT\n");
+				std::vector<Mat_<uchar>> p0 = getPatches(imagePieces.at(3), 2);
+				double min = FLT_MAX;
+				int auxK = 0;
+				int auxZ = 0;
+				int auxJ = 0;
 
+				for (int j = 0; j < 3; j++)
+				{
+					std::vector<Mat_<uchar>> p1 = getPatches(imagePieces.at(j), 2);
 
+					for (int k = 0; k < p1.size(); k++)
+					{
+						double result = rmseMatrix(p0.at(0), p1.at(k));
+						if (result < min)
+						{
+							min = result;
+							auxK = k; // numar patch
+							auxJ = j; // numar imagine
+						}
+					}
+				}
+
+				double min2 = FLT_MAX;
+				int auxK2 = 0;
+				int auxZ2 = 0;
+				int auxJ2 = 0;
+				for (int j = 0; j < 3; j++)
+				{
+					std::vector<Mat_<uchar>> p1 = getPatches(imagePieces.at(j), 2);
+
+					for (int k = 0; k < p1.size(); k++)
+					{
+						double result = rmseMatrix(p0.at(1), p1.at(k));
+						if (result < min2)
+						{
+							min2 = result;
+							auxK2 = k; // numar patch
+							auxJ2 = j; // numar imagine
+						}
+					}
+				}
+
+				printf("Best: Imagine = %d Patch = %d -> RMSE = %lf\n", auxJ, auxK, min); // imaginea din stanga
+				printf("Best: Imagine = %d Patch = %d -> RMSE = %lf\n", auxJ2, auxK2, min2); //imaginea de sus
+				//cum e 2x2, mai ramane o singura imagine ramasa, cea din stanga jos.
+			}
 		}
 		waitKey();
 	}
