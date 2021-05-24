@@ -130,161 +130,147 @@ std::vector<Mat_<uchar>> getPatches(Mat_<uchar> image, int patchSize) {
 	return patches;
 }
 
-void resolve2x2()
-{
-	// Create struct with partCols,partRows,leftBest,topBest,rightBest,bottomBest
-	// Based on the rows and cols of the part choose where it goes (default 0,0 to top left)
-	// Add the rest of the pieces based on the bests starting from 0,0
-	// bests type is _Mat<uchar> so the image will use graph logic with 0,0 being the root
-	// make imagePieces a matrix so we can use rows and cols to get a specific piece
+std::string sides[] = {"left", "top", "right", "bottom"};
 
+bool rectContains(Rect vector[], Rect element, int size) {
+	for (int i = 0; i < size; i++) {
+		if (vector[i] == element) return true;
+	}
+	return false;
+}
+void resolveNxN(int N)
+{
 	char fname[MAX_PATH];
 	while (openFileDlg(fname))
 	{
 		Mat_<uchar> src;
 		src = imread(fname, IMREAD_GRAYSCALE);
+		
+		double width = src.cols;
+		double height = src.rows;
+		double GRID_WIDTH = width / N;
+		double GRID_HEIGHT = height / N;
 
-		int rowNumber = src.rows / 2;
-		int colNumber = src.cols / 2;
-		Mat_<uchar> imgLeft(rowNumber, colNumber), imgRight(rowNumber, colNumber);
-		std::vector<Mat_<uchar>> imagePieces;
-		for (int i = 0; i < 4; i++)
-			imagePieces.push_back(Mat_<uchar>(rowNumber, colNumber));
-		for (int i = 0; i < src.rows; i++) // Make it possible to split the image in NxN pieces
-			for (int j = 0; j < src.cols; j++)
-			{
-				if (i < rowNumber && j < colNumber)
-					imagePieces.at(0)(i, j) = src(i, j);
-
-				if (i < rowNumber && j > colNumber)
-					imagePieces.at(1)(i, j - colNumber) = src(i, j);
-
-				if (i > rowNumber && j < colNumber)
-					imagePieces.at(2)(i - rowNumber, j) = src(i, j);
-
-				if (i > rowNumber && j > colNumber)
-					imagePieces.at(3)(i - rowNumber, j - colNumber) = src(i, j);
+		Rect cellsVector[9];
+		int k = 0;
+		Mat_<uchar> solution[7][7];
+		solution[0][0] = src(cellsVector[0]);
+		for (int y = 0; y <= height - GRID_HEIGHT ; y += GRID_HEIGHT) {
+			for (int x = 0; x <= width - GRID_WIDTH; x += GRID_WIDTH) {
+				Rect grid_rect(x, y, GRID_WIDTH, GRID_HEIGHT);
+				cellsVector[k] = grid_rect;
+				k++;
+				rectangle(src, grid_rect, Scalar(0, 255, 0), 1);
+				imshow("src", src);
+				//imshow(format("grid x:%d y:%d", x, y), src(grid_rect));
+				//Uncomment to see how the grid looks over the source image
 			}
-		//for (int i = 0; i < imagePieces.size(); i++)
-			//imshow(std::to_string(i), imagePieces.at(i));
+		}
 
-		/*std::vector<Mat_<uchar>> p0 = getPatches(imagePieces.at(0), 50);
-		std::vector<Mat_<uchar>> p1 = getPatches(imagePieces.at(1), 50);
+		double minRMSE;
+		Mat_<uchar> bestPiece;
+		int bestPieceSide;
+		bool rowChange = false;
+		Rect usedPieces[9];
 
-		for (int i = 0; i < 4; i++)
-			imshow(std::to_string(i), p0.at(i));
+		int solutionPositions[9];
+		solutionPositions[0] = 0;
 
-
-		for (int i = 0; i < 4; i++)
-			imshow(std::to_string(i + 5), p1.at(i));
-
-		waitKey();
-		exit(0);*/
-		for (int i = 0; i < 4; i++)
+		int currentPiece = 0;
+		for (int i = 0; i < N * N; i++)
 		{
-			if (i == 0)
-			{
-				printf("TOP LEFT\n");
-				std::vector<Mat_<uchar>> p0 = getPatches(imagePieces.at(0), 2);
-				double min = FLT_MAX;
-				int auxK = 0;
-				int auxZ = 0;
-				int auxJ = 0;
+			std::vector<Mat_<uchar>> p1 = getPatches(src(cellsVector[currentPiece]), 5);
 
-				for (int j = 1; j < 4; j++)
+			minRMSE = FLT_MAX;
+			bestPiece = Mat_<uchar>();
+			bestPieceSide = 0;
+			int bestPiecePosition = 0;
+
+
+			if (currentPiece == 0) {
+				for (int j = 1; j < N * N; j++)
 				{
-					std::vector<Mat_<uchar>> p1 = getPatches(imagePieces.at(j), 2);
-
-					for (int k = 0; k < p1.size(); k++)
-					{
-						double result = rmseMatrix(p0.at(3), p1.at(k));
-						if (result < min)
-						{
-							min = result;
-							auxK = k; // numar patch
-							auxJ = j; // numar imagine
+					std::vector<Mat_<uchar>> p2 = getPatches(src(cellsVector[j]), 5);
+					for (int k = 0; k < 4; k++) {
+						float rmse = rmseMatrix(p1[2], p2[k]);
+						std::cout << "Piece " << currentPiece << " right with piece " << j << " " << sides[k] << " : " << rmse << ".\n";
+						if (minRMSE > rmse) {
+							minRMSE = rmse;
+							bestPiece = Mat(src, cellsVector[j]);
+							bestPieceSide = k;
+							bestPiecePosition = j;
 						}
 					}
 				}
-
-				double min2 = FLT_MAX;
-				int auxK2 = 0;
-				int auxZ2 = 0;
-				int auxJ2 = 0;
-				for (int j = 1; j < 4; j++)
-				{
-					std::vector<Mat_<uchar>> p1 = getPatches(imagePieces.at(j), 2);
-
-					for (int k = 0; k < p1.size(); k++)
-					{
-						double result = rmseMatrix(p0.at(2), p1.at(k));
-						if (result < min2)
-						{
-							min2 = result;
-							auxK2 = k; // numar patch
-							auxJ2 = j; // numar imagine
-						}
-					}
-				}
-
-				printf("Best: Imagine = %d Patch = %d -> RMSE = %lf\n", auxJ, auxK, min); // imaginea din dreapta
-				printf("Best: Imagine = %d Patch = %d -> RMSE = %lf\n", auxJ2, auxK2, min2); //imaginea de jos
-				//cum e 2x2, mai ramane o singura imagine ramasa, cea din stanga jos.
+				currentPiece = bestPiecePosition;
+				usedPieces[bestPiecePosition] = cellsVector[bestPiecePosition];
+				solutionPositions[i+1] = bestPiecePosition;
 			}
-
-			if (i == 3)
-			{
-				printf("BOT RIGHT\n");
-				std::vector<Mat_<uchar>> p0 = getPatches(imagePieces.at(3), 2);
-				double min = FLT_MAX;
-				int auxK = 0;
-				int auxZ = 0;
-				int auxJ = 0;
-
-				for (int j = 0; j < 3; j++)
+			else {
+				for (int j = i + 1; j < N * N; j++)
 				{
-					std::vector<Mat_<uchar>> p1 = getPatches(imagePieces.at(j), 2);
-
-					for (int k = 0; k < p1.size(); k++)
-					{
-						double result = rmseMatrix(p0.at(0), p1.at(k));
-						if (result < min)
-						{
-							min = result;
-							auxK = k; // numar patch
-							auxJ = j; // numar imagine
+					if (!rectContains(usedPieces, cellsVector[j], N * N) && cellsVector[j] != cellsVector[currentPiece]) {
+						std::vector<Mat_<uchar>> p2 = getPatches(src(cellsVector[j]), 5);
+						if (i % N != N - 1 && !rowChange) {
+							for (int k = 0; k < 4; k++) {
+								float rmse = rmseMatrix(p1[2], p2[k]);
+								std::cout << "Piece " << currentPiece << " right with piece " << j << " " << sides[k] << " : " << rmse << ".\n";
+								if (minRMSE > rmse) {
+									minRMSE = rmse;
+									bestPiece = Mat(src, cellsVector[j]);
+									bestPieceSide = k;
+									bestPiecePosition = j;
+								}
+							}
 						}
+						else if (i % N != N - 1 && rowChange) {
+							for (int k = 0; k < 4; k++) {
+								float rmse = rmseMatrix(p1[0], p2[k]);
+								std::cout << "Piece " << currentPiece << " left with piece " << j << " " << sides[k] << " : " << rmse << ".\n";
+								if (minRMSE > rmse) {
+									minRMSE = rmse;
+									bestPiece = Mat(src, cellsVector[j]);
+									bestPieceSide = k;
+									bestPiecePosition = j;
+								}
+							}
+						}
+						else {
+							for (int k = 0; k < 4; k++) {
+								float rmse = rmseMatrix(p1[3], p2[k]);
+								std::cout << "Piece " << currentPiece << " bottom with piece " << j << " " << sides[k] << " : " << rmse << ".\n";
+								if (minRMSE > rmse) {
+									minRMSE = rmse;
+									bestPiece = Mat(src, cellsVector[j]);
+									bestPieceSide = k;
+									bestPiecePosition = j;
+								}
+							}
+							rowChange = !rowChange;
+						}
+						//switch (bestPieceSide) {
+						//	case 0:
+
+						//	case 1:
+
+						//	case 2:
+
+						//	case 3:
+						//}
+						solution[j / N][j % N] = bestPiece;
+						solutionPositions[i + 1] = bestPiecePosition;
+						currentPiece = bestPiecePosition;
 					}
 				}
-
-				double min2 = FLT_MAX;
-				int auxK2 = 0;
-				int auxZ2 = 0;
-				int auxJ2 = 0;
-				for (int j = 0; j < 3; j++)
-				{
-					std::vector<Mat_<uchar>> p1 = getPatches(imagePieces.at(j), 2);
-
-					for (int k = 0; k < p1.size(); k++)
-					{
-						double result = rmseMatrix(p0.at(1), p1.at(k));
-						if (result < min2)
-						{
-							min2 = result;
-							auxK2 = k; // numar patch
-							auxJ2 = j; // numar imagine
-						}
-					}
-				}
-
-				printf("Best: Imagine = %d Patch = %d -> RMSE = %lf\n", auxJ, auxK, min); // imaginea din stanga
-				printf("Best: Imagine = %d Patch = %d -> RMSE = %lf\n", auxJ2, auxK2, min2); //imaginea de sus
-				//cum e 2x2, mai ramane o singura imagine ramasa, cea din stanga jos.
 			}
+		}
+
+		for (int i = 0; i < N * N; i++) {
+			printf("%d", solutionPositions[i]);
+			if (i % N == N - 1) printf("\n");
 		}
 		waitKey();
 	}
-
 }
 int main()
 {
@@ -313,9 +299,8 @@ int main()
 			testColor2Gray();
 			break;
 		case 4:
-			resolve2x2();
+			resolveNxN(3);
 			break;
-
 		}
 
 	} while (op != 0);
